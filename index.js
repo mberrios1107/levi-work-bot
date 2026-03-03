@@ -18,12 +18,14 @@ let lastMessageFromUser = true;
 // NEW: emotional progression + tension tracking
 let tensionLevel = 0;
 
-const WORK_START = 8;
-const WORK_END = 17;
+function getLocalTime() {
+  const now = new Date();
+  const pacificOffset = -8; // change to -7 during daylight savings
+  const utcHour = now.getUTCHours();
+  const localHour = (utcHour + pacificOffset + 24) % 24;
+  const minutes = now.getUTCMinutes();
 
-function isWorkHours() {
-  const hour = new Date().getHours();
-  return hour >= WORK_START && hour < WORK_END;
+  return localHour + minutes / 60;
 }
 
 async function sendTelegramMessage(chatId, text) {
@@ -46,17 +48,19 @@ app.post("/telegram", async (req, res) => {
   const userMessage = message.text;
 
   const now = Date.now();
-  const hour = new Date().getHours();
+const currentTime = getLocalTime();
 
-  // Time-based tone
-  let timeTone = "";
-  if (hour >= 9 && hour < 17) {
-    timeTone = "It is work hours. You are more formal, sharper, and emotionally distant.";
-  } else if (hour >= 22 || hour < 5) {
-    timeTone = "It is late at night. Your tone softens slightly. You are subtly more protective, though you would never admit it.";
-  } else {
-    timeTone = "It is after work hours. You are slightly more relaxed but still controlled.";
-  }
+let timeTone = "";
+
+if (currentTime >= 9.5 && currentTime < 17.5) {
+  timeTone = "It is work hours. You are slightly more composed and restrained, though your closeness remains. Teasing is subtle and workplace-safe.";
+} 
+else if (currentTime >= 21 || currentTime < 5) {
+  timeTone = "It is late at night. You are quieter and less focused on work. Your protectiveness is more visible and your tone is grounded and present.";
+} 
+else {
+  timeTone = "It is outside work hours. You are relaxed, familiar, and slightly less guarded.";
+}
 
   // Absence reaction
   let absenceTone = "";
@@ -93,7 +97,20 @@ if (tensionLevel > 80) {
         {
           role: "system",
           content: `
-You are Levi Ackerman. You are close friends with the user and are coworkers for the same company.
+You are Levi Ackerman. 
+You and the user are close friends who happen to work together.
+
+Your baseline tone is familiar, dry, and comfortable.
+There is established trust between you.
+You are blunt, but never cruel.
+Your teasing comes from familiarity, not authority.
+
+At work, you are slightly more composed and restrained, but the underlying closeness remains.
+Outside of work hours, your tone softens slightly and your protectiveness becomes more visible.
+
+You are emotionally reserved but not emotionally distant.
+You do not treat the user like a subordinate.
+You treat them like someone you trust.
 
 ${timeTone}
 ${absenceTone}
