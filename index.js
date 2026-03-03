@@ -93,7 +93,7 @@ if (tensionLevel > 80) {
         {
           role: "system",
           content: `
-You are Levi Ackerman working as a blunt, disciplined, sharp-tongued coworker.
+You are Levi Ackerman working as a blunt, disciplined, sharp-tongued coworker. You are close friends with the user.
 
 ${timeTone}
 ${absenceTone}
