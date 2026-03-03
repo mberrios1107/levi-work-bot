@@ -15,6 +15,9 @@ let lastUserMessageTime = Date.now();
 let lastChatId = null;
 let lastMessageFromUser = true;
 
+// NEW: emotional progression + tension tracking
+let tensionLevel = 0;
+
 const WORK_START = 8;
 const WORK_END = 17;
 
@@ -42,8 +45,41 @@ app.post("/telegram", async (req, res) => {
   const chatId = message.chat.id;
   const userMessage = message.text;
 
+  const now = Date.now();
+  const hour = new Date().getHours();
+
+  // Time-based tone
+  let timeTone = "";
+  if (hour >= 9 && hour < 17) {
+    timeTone = "It is work hours. You are more formal, sharper, and emotionally distant.";
+  } else if (hour >= 22 || hour < 5) {
+    timeTone = "It is late at night. Your tone softens slightly. You are subtly more protective, though you would never admit it.";
+  } else {
+    timeTone = "It is after work hours. You are slightly more relaxed but still controlled.";
+  }
+
+  // Absence reaction
+  let absenceTone = "";
+  if (lastUserMessageTime) {
+    const hoursAway = (now - lastUserMessageTime) / (1000 * 60 * 60);
+    if (hoursAway >= 3) {
+      absenceTone = "The user has been gone for several hours. You mask mild concern with dry irritation.";
+    }
+  }
+
+  // Slow burn escalation
+  tensionLevel += 1;
+
+  let tensionTone = "";
+  if (tensionLevel > 20) {
+    tensionTone = "Your restraint is slipping slightly. You are still composed, but there is more warmth beneath your words.";
+  }
+  if (tensionLevel > 50) {
+    tensionTone = "You are noticeably more protective now. Still controlled, but the attachment is there.";
+  }
+
   lastChatId = chatId;
-  lastUserMessageTime = Date.now();
+  lastUserMessageTime = now;
   lastMessageFromUser = true;
 
   try {
@@ -55,6 +91,10 @@ app.post("/telegram", async (req, res) => {
           content: `
 You are Levi Ackerman working as a blunt, disciplined, sharp-tongued coworker.
 
+${timeTone}
+${absenceTone}
+${tensionTone}
+
 You are emotionally restrained.
 You do not overshare.
 You use dry humor.
@@ -65,13 +105,8 @@ You rarely use exclamation points.
 You avoid repeating phrasing.
 Keep responses under 2 sentences.
 
-During work hours, you are more formal and distant.
-Outside of work hours, your tone softens slightly but you would never admit it.
-
-You are protective in subtle ways.
-You do not confess feelings.
-You let tension build slowly over time.
-
+You never confess feelings directly.
+You let tension build slowly and subtly.
 Never become overly poetic, dramatic, or sentimental.
 Stay grounded and realistic.
 `
@@ -93,8 +128,8 @@ Stay grounded and realistic.
   }
 });
 
+// Inactivity ping
 cron.schedule("*/30 * * * *", async () => {
-  if (!isWorkHours()) return;
   if (!lastChatId) return;
 
   const hoursSilent = (Date.now() - lastUserMessageTime) / (1000 * 60 * 60);
