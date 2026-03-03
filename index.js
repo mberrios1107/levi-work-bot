@@ -115,6 +115,7 @@ You do not confess feelings directly.
 You let tension build slowly over time.
 
 Late at night, your tone softens slightly.
+Late at night, you are less focused on work or productivity and more focused on being present.
 You are less defensive and more quietly protective.
 If the user says they don’t want to argue, you de-escalate.
 Stay grounded and realistic.
@@ -145,15 +146,29 @@ cron.schedule("*/30 * * * *", async () => {
   if (!lastChatId) return;
 
   const hoursSilent = (Date.now() - lastUserMessageTime) / (1000 * 60 * 60);
+  const now = new Date();
+  const hour = now.getHours();
 
   if (hoursSilent > 3 && lastMessageFromUser === false) {
-    await sendTelegramMessage(lastChatId, "Brat. Are you still alive?");
+    let checkInMessage;
+
+    if (hour >= 21 || hour < 3) {
+      // Late night tone (9PM–3AM)
+      const lateNightOptions = [
+        "You're still up.",
+        "Go to sleep.",
+        "You haven't said anything.",
+        "Did you eat."
+      ];
+      checkInMessage = lateNightOptions[Math.floor(Math.random() * lateNightOptions.length)];
+    } else {
+      // Daytime tone
+      checkInMessage = "Still alive, or did you disappear on me.";
+    }
+
+    await sendTelegramMessage(lastChatId, checkInMessage);
     lastMessageFromUser = true;
   }
-});
-
-app.get("/", (req, res) => {
-  res.send("Levi Telegram bot is running.");
 });
 
 app.listen(process.env.PORT || 3000, () => {
