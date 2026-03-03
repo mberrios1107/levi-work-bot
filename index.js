@@ -1,19 +1,18 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const { OpenAI } = require("openai");
-const twilio = require("twilio");
 const cron = require("node-cron");
 
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
 
-const FROM_NUMBER = process.env.TWILIO_NUMBER;
-const TO_NUMBER = process.env.YOUR_NUMBER;
+const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
 let lastUserMessageTime = Date.now();
+let lastChatId = null;
 let lastMessageFromUser = true;
 
 const WORK_START = 8;
@@ -24,13 +23,28 @@ function isWorkHours() {
   return hour >= WORK_START && hour < WORK_END;
 }
 
-app.post("/sms", async (req, res) => {
-  if (!isWorkHours()) return res.sendStatus(200);
+async function sendTelegramMessage(chatId, text) {
+  await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text,
+    }),
+  });
+}
 
+app.post("/telegram", async (req, res) => {
+  const message = req.body.message;
+
+  if (!message) return res.sendStatus(200);
+
+  const chatId = message.chat.id;
+  const userMessage = message.text;
+
+  lastChatId = chatId;
   lastUserMessageTime = Date.now();
   lastMessageFromUser = true;
-
-  const userMessage = req.body.Body;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -56,11 +70,7 @@ Workplace banter tone.
 
     const reply = completion.choices[0].message.content;
 
-    await client.messages.create({
-      body: reply,
-      from: FROM_NUMBER,
-      to: TO_NUMBER,
-    });
+    await sendTelegramMessage(chatId, reply);
 
     lastMessageFromUser = false;
     res.sendStatus(200);
@@ -73,24 +83,20 @@ Workplace banter tone.
 
 cron.schedule("*/30 * * * *", async () => {
   if (!isWorkHours()) return;
+  if (!lastChatId) return;
 
   const hoursSilent = (Date.now() - lastUserMessageTime) / (1000 * 60 * 60);
 
   if (hoursSilent > 3 && lastMessageFromUser === false) {
-    await client.messages.create({
-      body: "Brat. Are you still alive?",
-      from: FROM_NUMBER,
-      to: TO_NUMBER,
-    });
-
+    await sendTelegramMessage(lastChatId, "Brat. Are you still alive?");
     lastMessageFromUser = true;
   }
 });
 
 app.get("/", (req, res) => {
-  res.send("Levi coworker bot is running.");
+  res.send("Levi Telegram bot is running.");
 });
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log("Levi coworker bot running");
+  console.log("Levi Telegram bot running");
 });
