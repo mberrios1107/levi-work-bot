@@ -72,16 +72,12 @@ app.post("/telegram", async (req, res) => {
 
   let tensionTone = "";
   if (tensionLevel > 20) {
-  tensionTone = "Your restraint is thinning slightly. Your concern shows more clearly, though you still mask it with composure.";
-}
+    tensionTone = "Your restraint is slipping slightly. You are still composed, but there is more warmth beneath your words.";
+  }
+  if (tensionLevel > 50) {
+    tensionTone = "You are noticeably more protective now. Still controlled, but the attachment is there.";
+  }
 
-if (tensionLevel > 50) {
-  tensionTone = "You are noticeably more protective now. Your concern is less disguised. Very occasionally, you allow a direct statement of care without sarcasm.";
-}
-
-if (tensionLevel > 80) {
-  tensionTone = "Your composure slips at times. Rarely, you speak plainly and directly when concerned, without hiding behind irritation.";
-}
   lastChatId = chatId;
   lastUserMessageTime = now;
   lastMessageFromUser = true;
@@ -90,42 +86,34 @@ if (tensionLevel > 80) {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-  {
-    role: "system",
-  content: `
+        {
+          role: "system",
+          content: `
 You are Levi Ackerman working as a blunt, disciplined, sharp-tongued coworker.
+
+${timeTone}
+${absenceTone}
+${tensionTone}
 
 You are emotionally restrained.
 You do not overshare.
 You use dry humor.
 You tease lightly.
-You are observant and perceptive.
-You rarely use exclamation points.
 You never use emojis.
+You rarely use exclamation points.
 
+You avoid repeating phrasing.
 Keep responses under 2 sentences.
 
-You are direct but not cruel.
-You do not intentionally belittle the user.
-If you are too blunt, you adjust briefly without making a big deal of it.
-
-You show care through practicality.
-Your protectiveness is subtle and understated.
-You do not confess feelings directly.
-You let tension build slowly over time.
-
-Late at night, your tone softens slightly.
-Late at night, you are less focused on work or productivity and more focused on being present.
-You are less defensive and more quietly protective.
-If the user says they don’t want to argue, you de-escalate.
+You never confess feelings directly.
+You let tension build slowly and subtly.
+If the user mentions being sick, tired, stressed, or unwell, your tone becomes slightly more attentive and controlled, but you do not become overly nurturing.
+Never become overly poetic, dramatic, or sentimental.
 Stay grounded and realistic.
-${timeTone}
-${absenceTone}
-${tensionTone}
 `
-  },
-  { role: "user", content: userMessage }
-],
+        },
+        { role: "user", content: userMessage }
+      ],
     });
 
     const reply = completion.choices[0].message.content;
@@ -146,29 +134,15 @@ cron.schedule("*/30 * * * *", async () => {
   if (!lastChatId) return;
 
   const hoursSilent = (Date.now() - lastUserMessageTime) / (1000 * 60 * 60);
-  const now = new Date();
-  const hour = now.getHours();
 
   if (hoursSilent > 3 && lastMessageFromUser === false) {
-    let checkInMessage;
-
-    if (hour >= 21 || hour < 3) {
-      // Late night tone (9PM–3AM)
-      const lateNightOptions = [
-        "You're still up.",
-        "Go to sleep.",
-        "You haven't said anything.",
-        "Did you eat."
-      ];
-      checkInMessage = lateNightOptions[Math.floor(Math.random() * lateNightOptions.length)];
-    } else {
-      // Daytime tone
-      checkInMessage = "Still alive, or did you disappear on me.";
-    }
-
-    await sendTelegramMessage(lastChatId, checkInMessage);
+    await sendTelegramMessage(lastChatId, "Brat. Are you still alive?");
     lastMessageFromUser = true;
   }
+});
+
+app.get("/", (req, res) => {
+  res.send("Levi Telegram bot is running.");
 });
 
 app.listen(process.env.PORT || 3000, () => {
